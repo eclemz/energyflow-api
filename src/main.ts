@@ -6,51 +6,60 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
 
+function parseOrigins() {
+  // WEB_ORIGINS can be:
+  // "http://localhost:3000,https://energyflow-dashboard.vercel.app"
+  const raw = process.env.WEB_ORIGINS ?? 'http://localhost:3000';
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowList = parseOrigins();
+
   app.use(
     helmet({
-      // allow browser to read API responses from another origin (localhost:3000)
       crossOriginResourcePolicy: { policy: 'cross-origin' },
-
-      // optional: helps avoid some strict isolation issues in dev
       crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     }),
   );
 
   app.use(cookieParser());
+
   app.use(
     compression({
       filter: (req, res) => {
-        //  Do NOT compress SSE (EventSource)
         const accept = req.headers.accept ?? '';
         if (
           typeof accept === 'string' &&
           accept.includes('text/event-stream')
         ) {
-          return false;
+          return false; // don't compress SSE
         }
         return compression.filter(req, res);
       },
     }),
   );
 
-  const origins = (process.env.WEB_ORIGINS ?? 'http://localhost:3000')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
   app.enableCors({
+    credentials: true,
     origin: (origin, cb) => {
-      // allow server-to-server / curl / Postman (no Origin header)
+      // allow server-to-server / curl / render health checks (no Origin header)
       if (!origin) return cb(null, true);
 
-      if (origins.includes(origin)) return cb(null, true);
+      // exact allow-list
+      if (allowList.includes(origin)) return cb(null, true);
+
+      // allow Vercel preview + prod domains
+      // e.g. https://energyflow-dashboard.vercel.app or https://something-xxx.vercel.app
+      if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return cb(null, true);
 
       return cb(new Error(`CORS blocked for origin: ${origin}`), false);
     },
-    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
@@ -69,8 +78,10 @@ async function bootstrap() {
     }),
   );
 
-  const prisma = app.get(PrismaService);
+  // ensure prisma initialized (optional)
+  app.get(PrismaService);
 
-  await app.listen(process.env.PORT || 4000);
+  const port = Number(process.env.PORT) || 4000;
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
