@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String?
+  role         Role     @default(VIEWER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  apiKeyHash   String?
+}
+
+model Device {
+  id         String             @id @default(cuid())
+  name       String
+  serial     String             @unique
+  location   String?
+  timezone   String?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  apiKeyHash String?
+  alerts     Alert[]
+  readings   TelemetryReading[]
+}
+
+model TelemetryReading {
+  id        String       @id @default(cuid())
+  deviceId  String
+  ts        DateTime
+  solarW    Int?
+  loadW     Int?
+  gridW     Int?
+  inverterW Int?
+  batteryV  Float?
+  batteryA  Float?
+  soc       Int?
+  tempC     Float?
+  status    DeviceStatus @default(OK)
+  createdAt DateTime     @default(now())
+  device    Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, ts])
+}
+
+model Alert {
+  id             String        @id @default(cuid())
+  deviceId       String
+  ts             DateTime      @default(now())
+  type           AlertType
+  severity       AlertSeverity @default(INFO)
+  message        String
+  acknowledgedAt DateTime?
+  createdAt      DateTime      @default(now())
+  device         Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, ts])
+  @@index([acknowledgedAt])
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+}
+
+enum DeviceStatus {
+  OK
+  WARN
+  FAULT
+  OFFLINE
+}
+
+enum AlertType {
+  LOW_SOC
+  LOW_BATTERY
+  OVERLOAD
+  GRID_LOSS
+  HIGH_TEMP
+  WARN_GENERIC
+}
+
+enum AlertSeverity {
+  INFO
+  WARN
+  CRITICAL
+}
