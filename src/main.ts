@@ -36,11 +36,28 @@ async function bootstrap() {
     }),
   );
 
+  const origins = (process.env.WEB_ORIGINS ?? 'http://localhost:3000')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: (origin, cb) => {
+      // allow server-to-server / curl / Postman (no Origin header)
+      if (!origin) return cb(null, true);
+
+      if (origins.includes(origin)) return cb(null, true);
+
+      return cb(new Error(`CORS blocked for origin: ${origin}`), false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-device-serial',
+      'x-device-key',
+    ],
   });
 
   app.useGlobalPipes(
@@ -54,6 +71,6 @@ async function bootstrap() {
 
   const prisma = app.get(PrismaService);
 
-  await app.listen(4000);
+  await app.listen(process.env.PORT || 4000);
 }
 bootstrap();
