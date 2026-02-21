@@ -22,18 +22,42 @@ export class AuthController {
     res.cookie('access_token', tokens.accessToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 1000 * 60 * 15,
     });
 
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
       secure: isProd,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     return { message: 'Logged in' };
+  }
+
+  @Post('demo')
+  async demo(@Res({ passthrough: true }) res: Response) {
+    const user = await this.authService.getOrCreateDemoUser();
+    const tokens = this.authService.generateTokens(user);
+
+    const isProd = process.env.NODE_ENV === 'production';
+
+    res.cookie('access_token', tokens.accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax', // ✅ important for Vercel -> Render cookies
+      maxAge: 1000 * 60 * 15,
+    });
+
+    res.cookie('refresh_token', tokens.refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax', // ✅ important for Vercel -> Render cookies
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    return { message: 'Logged in (demo)' };
   }
 
   @Post('logout')

@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -9,7 +10,32 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
   ) {}
+  async getOrCreateDemoUser() {
+    if (process.env.DEMO_LOGIN_ENABLED === 'false') {
+      // you can remove this check if you don't care
+      throw new Error('Demo login disabled');
+    }
 
+    const email = process.env.DEMO_USER_EMAIL ?? 'demo@energyflow.app';
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existing) return existing;
+
+    // create demo user once
+    const passwordHash = await bcrypt.hash('demo-not-used', 10);
+
+    return this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        fullName: 'Demo User',
+        role: Role.VIEWER,
+      },
+    });
+  }
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
