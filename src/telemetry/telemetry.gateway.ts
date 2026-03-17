@@ -27,4 +27,12 @@ export class TelemetryGateway {
   broadcastAlertAck(deviceId: string, alertId: string) {
     this.server.emit(`device:${deviceId}:alert:ack`, { id: alertId, deviceId });
   }
+  emitTelemetry(deviceId: string, payload: any) {
+    this.server.emit(`device:${deviceId}`, payload);
+    this.server.emit('fleet:telemetry', { deviceId, ...payload }); // optional
+  }
+
+  emitAlert(deviceId: string, alert: any) {
+    this.server.emit(`device:${deviceId}:alert`, alert);
+  }
 }

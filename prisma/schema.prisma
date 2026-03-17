@@ -78,7 +78,6 @@ enum DeviceStatus {
 }
 
 enum AlertType {
-  LOW_SOC
   LOW_BATTERY
   OVERLOAD
   GRID_LOSS

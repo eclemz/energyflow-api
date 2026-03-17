@@ -29,13 +29,17 @@ export class TelemetryService {
     const tempC = dto.tempC ?? null;
     const loadW = dto.loadW ?? null;
     const gridW = dto.gridW ?? null;
-    const status = dto.status ?? null;
+    const status: DeviceStatus | null =
+      dto.status &&
+      Object.values(DeviceStatus).includes(dto.status as DeviceStatus)
+        ? (dto.status as DeviceStatus)
+        : null;
 
     if (soc !== null && soc < 20) {
       alerts.push({
         type: AlertType.LOW_BATTERY,
         severity: AlertSeverity.WARN,
-        message: `Battery low (${soc}%)`,
+        message: 'Battery low (<20%)',
       });
     }
 
@@ -43,28 +47,19 @@ export class TelemetryService {
       alerts.push({
         type: AlertType.HIGH_TEMP,
         severity: AlertSeverity.CRITICAL,
-        message: `Temperature high (${tempC}°C)`,
+        message: 'Temperature high (>60°C)',
       });
     }
 
-    if (loadW !== null && loadW > 5000) {
-      alerts.push({
-        type: AlertType.OVERLOAD,
-        severity: AlertSeverity.CRITICAL,
-        message: `Load overload (${loadW}W)`,
-      });
-    }
-
-    if (gridW !== null && gridW === 0 && status && status !== 'OK') {
+    if (gridW !== null && gridW === 0 && status && status !== DeviceStatus.OK) {
       alerts.push({
         type: AlertType.GRID_LOSS,
         severity: AlertSeverity.WARN,
-        message: `Grid loss detected (status: ${status})`,
+        message: 'Grid loss detected',
       });
     }
 
-    // Optional generic warn only if nothing else triggered
-    if (alerts.length === 0 && status && status !== 'OK') {
+    if (alerts.length === 0 && status && status !== DeviceStatus.OK) {
       alerts.push({
         type: AlertType.WARN_GENERIC,
         severity: AlertSeverity.WARN,
@@ -81,6 +76,12 @@ export class TelemetryService {
       throw new BadRequestException('Invalid ts');
     }
 
+    const safeStatus =
+      dto.status &&
+      Object.values(DeviceStatus).includes(dto.status as DeviceStatus)
+        ? (dto.status as DeviceStatus)
+        : DeviceStatus.OK;
+
     const reading = await this.prisma.telemetryReading.create({
       data: {
         deviceId,
@@ -93,7 +94,7 @@ export class TelemetryService {
         batteryA: dto.batteryA ?? null,
         soc: dto.soc ?? null,
         tempC: dto.tempC ?? null,
-        status: (dto.status as DeviceStatus) ?? DeviceStatus.OK,
+        status: safeStatus,
       },
     });
 

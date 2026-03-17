@@ -54,13 +54,21 @@ export class AlertsService {
     message: string;
     severity: AlertSeverity;
   }) {
-    const since = new Date(Date.now() - 2 * 60 * 1000);
+    const cooldownMsByType: Partial<Record<AlertType, number>> = {
+      HIGH_TEMP: 60_000,
+      LOW_BATTERY: 60_000,
+      OVERLOAD: 30_000,
+      GRID_LOSS: 30_000,
+      WARN_GENERIC: 15_000,
+    };
+
+    const cooldownMs = cooldownMsByType[input.type] ?? 120_000;
+    const since = new Date(Date.now() - cooldownMs);
 
     const recent = await this.prisma.alert.findFirst({
       where: {
         deviceId: input.deviceId,
         type: input.type,
-        message: input.message,
         createdAt: { gte: since },
         acknowledgedAt: null,
       },

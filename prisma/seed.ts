@@ -58,6 +58,15 @@ async function main() {
     },
   });
 
+  // await prisma.device.createMany({
+  //   data: [
+  //     { name: 'Unit 001', serial: 'INV-001', location: 'Lagos' },
+  //     { name: 'Unit 002', serial: 'INV-002', location: 'Abuja' },
+  //     { name: 'Unit 003', serial: 'INV-003', location: 'Port Harcourt' },
+  //   ],
+  //   skipDuplicates: true,
+  // });
+
   console.log('Seed complete ✅');
   console.log('Admin login:', adminEmail, password);
 }
